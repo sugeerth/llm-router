@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Router - Intelligent Model Routing</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f9ed;</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-inner">
+                <div class="logo">
+                    <span class="logo-icon">&#x1f9ed;</span>
+                    <span class="logo-text">LLM Router</span>
+                    <span class="logo-badge">v1.0</span>
+                </div>
+                <nav class="nav">
+                    <button class="nav-btn active" data-tab="router">Router</button>
+                    <button class="nav-btn" data-tab="benchmark">Benchmark</button>
+                    <button class="nav-btn" data-tab="models">Models</button>
+                    <button class="nav-btn" data-tab="settings">Settings</button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Router Tab -->
+            <section id="tab-router" class="tab-content active">
+                <div class="router-layout">
+                    <!-- Input Panel -->
+                    <div class="panel input-panel">
+                        <div class="panel-header">
+                            <h2>Query Input</h2>
+                            <div class="input-controls">
+                                <select id="priority-select" class="select-control">
+                                    <option value="balanced">Balanced</option>
+                                    <option value="quality">Max Quality</option>
+                                    <option value="speed">Max Speed</option>
+                                    <option value="cost">Min Cost</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="textarea-wrapper">
+                            <textarea id="query-input" placeholder="Enter your query here... The router will analyze it and recommend the optimal model.&#10;&#10;Try queries like:&#10;- &quot;Write a haiku about autumn&quot;&#10;- &quot;Explain the proof of Fermat's Last Theorem&quot;&#10;- &quot;Fix this Python code: def fib(n): return fib(n-1) + fib(n-2)&quot;&#10;- &quot;Translate 'hello world' to Japanese&quot;&#10;- &quot;Design a distributed cache with consistency guarantees&quot;" rows="8"></textarea>
+                            <div class="textarea-footer">
+                                <span id="char-count">0 chars</span>
+                                <span id="token-estimate">~0 tokens</span>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                            <button id="route-btn" class="btn btn-primary">
+                                <span class="btn-icon">&#x26a1;</span> Route Query
+                            </button>
+                            <button id="route-and-run-btn" class="btn btn-secondary">
+                                <span class="btn-icon">&#x25b6;</span> Route & Execute
+                            </button>
+                            <button id="clear-btn" class="btn btn-ghost">Clear</button>
+                        </div>
+                        <!-- Example Queries -->
+                        <div class="examples-section">
+                            <h3>Try an example</h3>
+                            <div class="example-chips">
+                                <button class="chip" data-query="What is the capital of France?">Simple factual</button>
+                                <button class="chip" data-query="Write a Python function to find all prime numbers up to n using the Sieve of Eratosthenes, with type hints and comprehensive docstring.">Code generation</button>
+                                <button class="chip" data-query="Analyze the geopolitical implications of semiconductor supply chain disruptions on US-China relations, considering both economic interdependence and national security concerns. Provide a nuanced analysis with multiple perspectives.">Complex analysis</button>
+                                <button class="chip" data-query="Write a short creative story about a robot learning to paint, in the style of Ray Bradbury.">Creative writing</button>
+                                <button class="chip" data-query="Solve: If f(x) = integral from 0 to x of (t^2 * e^(-t)) dt, find f'(x) and evaluate the limit as x approaches infinity of f(x)/x^2.">Math reasoning</button>
+                                <button class="chip" data-query="Translate this to French, Spanish, and Japanese: 'The early bird catches the worm, but the second mouse gets the cheese.'">Translation</button>
+                                <button class="chip" data-query="Summarize the key differences between TCP and UDP in a table format.">Summarization</button>
+                                <button class="chip" data-query="Design a microservices architecture for a real-time collaborative document editor that supports 100k concurrent users. Include service boundaries, data flow, consistency strategy, and failure handling.">System design</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results Panel -->
+                    <div class="panel results-panel">
+                        <div class="panel-header">
+                            <h2>Routing Decision</h2>
+                            <div id="routing-time" class="routing-time hidden"></div>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="empty-state" class="empty-state">
+                            <div class="empty-icon">&#x1f9ed;</div>
+                            <h3>Enter a query to see routing recommendations</h3>
+                            <p>The router analyzes your query's complexity, task type, and requirements to select the optimal model.</p>
+                        </div>
+
+                        <!-- Results -->
+                        <div id="routing-results" class="routing-results hidden">
+                            <!-- Recommended Model Card -->
+                            <div id="recommended-model" class="model-recommendation"></div>
+
+                            <!-- Analysis Breakdown -->
+                            <div class="analysis-section">
+                                <h3>Routing Analysis</h3>
+                                <div id="analysis-breakdown" class="analysis-grid"></div>
+                            </div>
+
+                            <!-- Score Comparison -->
+                            <div class="scores-section">
+                                <h3>Model Rankings</h3>
+                                <div id="model-scores" class="model-scores-list"></div>
+                            </div>
+
+                            <!-- Routing Explanation -->
+                            <div class="explanation-section">
+                                <h3>Decision Explanation</h3>
+                                <div id="routing-explanation" class="explanation-text"></div>
+                            </div>
+                        </div>
+
+                        <!-- Execution Results -->
+                        <div id="execution-results" class="execution-results hidden">
+                            <div class="execution-header">
+                                <h3>Model Response</h3>
+                                <div class="execution-meta">
+                                    <span id="exec-model"></span>
+                                    <span id="exec-time"></span>
+                                    <span id="exec-tokens"></span>
+                                </div>
+                            </div>
+                            <div id="exec-response" class="exec-response"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Benchmark Tab -->
+            <section id="tab-benchmark" class="tab-content">
+                <div class="benchmark-layout">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Routing Benchmark</h2>
+                            <button id="run-benchmark" class="btn btn-primary">
+                                <span class="btn-icon">&#x1f3c1;</span> Run Full Benchmark
+                            </button>
+                        </div>
+                        <p class="panel-description">Test the routing algorithm against a curated set of queries spanning different task types and complexity levels.</p>
+                        <div id="benchmark-results" class="benchmark-results"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Models Tab -->
+            <section id="tab-models" class="tab-content">
+                <div class="models-layout">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>Model Registry</h2>
+                        </div>
+                        <p class="panel-description">All available models and their capabilities, strengths, and pricing.</p>
+                        <div id="model-registry" class="model-registry"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section id="tab-settings" class="tab-content">
+                <div class="settings-layout">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>API Keys & Configuration</h2>
+                        </div>
+                        <p class="panel-description">Configure API keys to enable the "Route & Execute" feature. Keys are stored locally in your browser only.</p>
+                        <div class="settings-grid">
+                            <div class="setting-group">
+                                <label class="setting-label">
+                                    <span class="provider-dot" style="background: #10a37f"></span>
+                                    OpenAI API Key
+                                </label>
+                                <div class="key-input-wrapper">
+                                    <input type="password" id="key-openai" class="setting-input" placeholder="sk-...">
+                                    <button class="toggle-vis-btn" data-target="key-openai">&#x1f441;</button>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label">
+                                    <span class="provider-dot" style="background: #d97706"></span>
+                                    Anthropic API Key
+                                </label>
+                                <div class="key-input-wrapper">
+                                    <input type="password" id="key-anthropic" class="setting-input" placeholder="sk-ant-...">
+                                    <button class="toggle-vis-btn" data-target="key-anthropic">&#x1f441;</button>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label">
+                                    <span class="provider-dot" style="background: #4285f4"></span>
+                                    Google AI API Key
+                                </label>
+                                <div class="key-input-wrapper">
+                                    <input type="password" id="key-google" class="setting-input" placeholder="AI...">
+                                    <button class="toggle-vis-btn" data-target="key-google">&#x1f441;</button>
+                                </div>
+                            </div>
+                            <div class="setting-group">
+                                <label class="setting-label">
+                                    <span class="provider-dot" style="background: #6366f1"></span>
+                                    OpenRouter API Key <span class="tag-subtle">routes to 100+ models</span>
+                                </label>
+                                <div class="key-input-wrapper">
+                                    <input type="password" id="key-openrouter" class="setting-input" placeholder="sk-or-...">
+                                    <button class="toggle-vis-btn" data-target="key-openrouter">&#x1f441;</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-actions">
+                            <button id="save-keys" class="btn btn-primary">Save Keys</button>
+                            <button id="clear-keys" class="btn btn-ghost">Clear All Keys</button>
+                        </div>
+
+                        <div class="setting-group" style="margin-top: 2rem;">
+                            <h3>Router Weights</h3>
+                            <p class="panel-description">Fine-tune how the router scores models. These weights are multiplied with each signal score.</p>
+                            <div class="weights-grid">
+                                <div class="weight-control">
+                                    <label>Complexity Match</label>
+                                    <input type="range" id="weight-complexity" min="0" max="2" step="0.1" value="1.0">
+                                    <span class="weight-value">1.0</span>
+                                </div>
+                                <div class="weight-control">
+                                    <label>Task Specialty</label>
+                                    <input type="range" id="weight-task" min="0" max="2" step="0.1" value="1.2">
+                                    <span class="weight-value">1.2</span>
+                                </div>
+                                <div class="weight-control">
+                                    <label>Cost Efficiency</label>
+                                    <input type="range" id="weight-cost" min="0" max="2" step="0.1" value="0.8">
+                                    <span class="weight-value">0.8</span>
+                                </div>
+                                <div class="weight-control">
+                                    <label>Speed</label>
+                                    <input type="range" id="weight-speed" min="0" max="2" step="0.1" value="0.7">
+                                    <span class="weight-value">0.7</span>
+                                </div>
+                                <div class="weight-control">
+                                    <label>Context Fit</label>
+                                    <input type="range" id="weight-context" min="0" max="2" step="0.1" value="0.5">
+                                    <span class="weight-value">0.5</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>LLM Router &mdash; Intelligent model selection for every query. All routing runs locally in your browser.</p>
+        </footer>
+    </div>
+
+    <script type="module" src="js/models.js"></script>
+    <script type="module" src="js/analyzer.js"></script>
+    <script type="module" src="js/router.js"></script>
+    <script type="module" src="js/executor.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
