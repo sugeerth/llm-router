@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Router - Intelligent Model Routing</title>
+    <meta name="description" content="Automatically route queries to the optimal LLM. Analyzes task type, complexity, and requirements across 12 models from 6 providers.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f9ed;</text></svg>">
     <link rel="stylesheet" href="css/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="app">
@@ -16,18 +17,79 @@
         <header class="header">
             <div class="header-inner">
                 <div class="logo">
-                    <span class="logo-icon">&#x1f9ed;</span>
+                    <div class="logo-mark">
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                            <path d="M14 2L26 8v12l-12 6L2 20V8l12-6z" stroke="url(#logo-grad)" stroke-width="1.5" fill="none"/>
+                            <circle cx="14" cy="14" r="3" fill="url(#logo-grad)"/>
+                            <line x1="14" y1="11" x2="14" y2="4" stroke="url(#logo-grad)" stroke-width="1.2"/>
+                            <line x1="16.6" y1="15.5" x2="22" y2="19" stroke="url(#logo-grad)" stroke-width="1.2"/>
+                            <line x1="11.4" y1="15.5" x2="6" y2="19" stroke="url(#logo-grad)" stroke-width="1.2"/>
+                            <defs>
+                                <linearGradient id="logo-grad" x1="2" y1="2" x2="26" y2="26">
+                                    <stop stop-color="#818cf8"/>
+                                    <stop offset="1" stop-color="#6366f1"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
                     <span class="logo-text">LLM Router</span>
-                    <span class="logo-badge">v1.0</span>
                 </div>
                 <nav class="nav">
                     <button class="nav-btn active" data-tab="router">Router</button>
+                    <button class="nav-btn" data-tab="how-it-works">How It Works</button>
                     <button class="nav-btn" data-tab="benchmark">Benchmark</button>
                     <button class="nav-btn" data-tab="models">Models</button>
                     <button class="nav-btn" data-tab="settings">Settings</button>
                 </nav>
+                <a href="https://github.com/sugeerth/llm-router" target="_blank" class="github-link" aria-label="GitHub">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                </a>
             </div>
         </header>
+
+        <!-- Hero Section -->
+        <section class="hero" id="hero-section">
+            <div class="hero-bg">
+                <div class="hero-grid"></div>
+                <div class="hero-glow"></div>
+            </div>
+            <div class="hero-content">
+                <div class="hero-badge">12 models &middot; 6 providers &middot; sub-ms routing</div>
+                <h1>Route any query to the <span class="gradient-text">optimal LLM</span></h1>
+                <p class="hero-sub">Multi-signal analysis scores every model on task match, complexity fit, cost, speed, and context capacity. No backend needed &mdash; runs entirely in your browser.</p>
+                <div class="hero-pipeline">
+                    <div class="pipeline-step">
+                        <div class="pipeline-num">1</div>
+                        <div class="pipeline-label">Classify Task</div>
+                        <div class="pipeline-detail">12 task categories via pattern matching</div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-num">2</div>
+                        <div class="pipeline-label">Score Complexity</div>
+                        <div class="pipeline-detail">9 signals: length, vocab, structure, domain</div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-num">3</div>
+                        <div class="pipeline-label">Rank Models</div>
+                        <div class="pipeline-detail">5 weighted dimensions + reasoning bonus</div>
+                    </div>
+                    <div class="pipeline-arrow">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </div>
+                    <div class="pipeline-step highlight-step">
+                        <div class="pipeline-num">4</div>
+                        <div class="pipeline-label">Route</div>
+                        <div class="pipeline-detail">Select optimal model with full explanation</div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- Main Content -->
         <main class="main">
@@ -48,14 +110,16 @@
                             </div>
                         </div>
                         <div class="textarea-wrapper">
-                            <textarea id="query-input" placeholder="Enter your query here... The router will analyze it and recommend the optimal model.&#10;&#10;Try queries like:&#10;- &quot;Write a haiku about autumn&quot;&#10;- &quot;Explain the proof of Fermat's Last Theorem&quot;&#10;- &quot;Fix this Python code: def fib(n): return fib(n-1) + fib(n-2)&quot;&#10;- &quot;Translate 'hello world' to Japanese&quot;&#10;- &quot;Design a distributed cache with consistency guarantees&quot;" rows="8"></textarea>
+                            <textarea id="query-input" placeholder="Enter your query here...&#10;&#10;The router analyzes complexity, task type, and constraints&#10;to select the optimal model. Try Cmd+Enter to route." rows="7"></textarea>
                             <div class="textarea-footer">
                                 <span id="char-count">0 chars</span>
+                                <span class="footer-sep">&middot;</span>
                                 <span id="token-estimate">~0 tokens</span>
+                                <span class="footer-hint">Cmd+Enter to route</span>
                             </div>
                         </div>
                         <div class="action-row">
-                            <button id="route-btn" class="btn btn-primary">
+                            <button id="route-btn" class="btn btn-primary btn-glow">
                                 <span class="btn-icon">&#x26a1;</span> Route Query
                             </button>
                             <button id="route-and-run-btn" class="btn btn-secondary">
@@ -88,31 +152,56 @@
 
                         <!-- Empty State -->
                         <div id="empty-state" class="empty-state">
-                            <div class="empty-icon">&#x1f9ed;</div>
+                            <div class="empty-visual">
+                                <div class="empty-nodes">
+                                    <div class="empty-node n1"></div>
+                                    <div class="empty-node n2"></div>
+                                    <div class="empty-node n3"></div>
+                                    <div class="empty-node center"></div>
+                                    <div class="empty-node n4"></div>
+                                    <div class="empty-node n5"></div>
+                                    <div class="empty-node n6"></div>
+                                </div>
+                            </div>
                             <h3>Enter a query to see routing recommendations</h3>
-                            <p>The router analyzes your query's complexity, task type, and requirements to select the optimal model.</p>
+                            <p>The router scores 12 models across 5 dimensions and explains every decision.</p>
                         </div>
 
                         <!-- Results -->
                         <div id="routing-results" class="routing-results hidden">
+                            <!-- Routing Flow Visualization -->
+                            <div id="routing-flow" class="routing-flow"></div>
+
                             <!-- Recommended Model Card -->
                             <div id="recommended-model" class="model-recommendation"></div>
 
                             <!-- Analysis Breakdown -->
                             <div class="analysis-section">
-                                <h3>Routing Analysis</h3>
+                                <h3>Query Analysis</h3>
                                 <div id="analysis-breakdown" class="analysis-grid"></div>
+                            </div>
+
+                            <!-- Task Classification Detail -->
+                            <div class="analysis-section">
+                                <h3>Task Classification Scores</h3>
+                                <div id="task-scores-detail" class="task-scores-detail"></div>
                             </div>
 
                             <!-- Score Comparison -->
                             <div class="scores-section">
-                                <h3>Model Rankings</h3>
+                                <h3>Model Rankings <span class="rankings-subtitle" id="rankings-subtitle"></span></h3>
                                 <div id="model-scores" class="model-scores-list"></div>
+                            </div>
+
+                            <!-- Signal Heatmap -->
+                            <div class="analysis-section">
+                                <h3>Signal Heatmap <span class="section-hint">hover for details</span></h3>
+                                <div id="signal-heatmap" class="signal-heatmap"></div>
                             </div>
 
                             <!-- Routing Explanation -->
                             <div class="explanation-section">
-                                <h3>Decision Explanation</h3>
+                                <h3>Decision Trace</h3>
                                 <div id="routing-explanation" class="explanation-text"></div>
                             </div>
                         </div>
@@ -133,6 +222,147 @@
                 </div>
             </section>
 
+            <!-- How It Works Tab -->
+            <section id="tab-how-it-works" class="tab-content">
+                <div class="hiw-layout">
+                    <div class="panel">
+                        <div class="hiw-hero">
+                            <h2>The Routing Algorithm</h2>
+                            <p>Every routing decision follows a deterministic, explainable pipeline. No black boxes.</p>
+                        </div>
+
+                        <div class="hiw-section">
+                            <div class="hiw-step-header">
+                                <span class="hiw-step-num">01</span>
+                                <h3>Task Classification</h3>
+                            </div>
+                            <div class="hiw-content">
+                                <p>The analyzer runs the query against pattern libraries for <strong>12 task categories</strong>: code generation, debugging, creative writing, analysis, math reasoning, summarization, translation, conversation, factual Q&A, system design, data extraction, and instruction following.</p>
+                                <p>Each category has <strong>strong</strong> and <strong>moderate</strong> signal patterns. A query can match multiple categories &mdash; "Write a Python function to calculate eigenvalues" hits both code generation and math reasoning. The router uses both primary and secondary task types when scoring.</p>
+                                <div class="hiw-code">
+                                    <code>taskScores = { code_generation: 0.72, math_reasoning: 0.54, ... }</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hiw-section">
+                            <div class="hiw-step-header">
+                                <span class="hiw-step-num">02</span>
+                                <h3>Complexity Estimation</h3>
+                            </div>
+                            <div class="hiw-content">
+                                <p>Complexity is scored from 0.0 (trivial) to 1.0 (extremely hard) using <strong>9 independent signals</strong>:</p>
+                                <div class="hiw-signals-grid">
+                                    <div class="hiw-signal">
+                                        <strong>Length</strong>
+                                        <span>Longer queries correlate with higher complexity</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Sentence Structure</strong>
+                                        <span>Multi-sentence, compound queries score higher</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Multi-part Detection</strong>
+                                        <span>Numbered lists, semicolons, multiple questions</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Technical Vocabulary</strong>
+                                        <span>Domain terms: "polymorphism", "idempotent", "stochastic"</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Code Blocks</strong>
+                                        <span>Presence and size of embedded code</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Explicit Markers</strong>
+                                        <span>"comprehensive", "nuanced", "prove" boost; "simple", "quick" reduce</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Task Bias</strong>
+                                        <span>System design inherently complex; factual Q&A inherently simple</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Cross-domain</strong>
+                                        <span>Queries spanning 3+ task types get a complexity bonus</span>
+                                    </div>
+                                    <div class="hiw-signal">
+                                        <strong>Question Count</strong>
+                                        <span>Multiple question marks indicate multi-faceted queries</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hiw-section">
+                            <div class="hiw-step-header">
+                                <span class="hiw-step-num">03</span>
+                                <h3>Model Scoring</h3>
+                            </div>
+                            <div class="hiw-content">
+                                <p>Every model is scored across <strong>5 weighted dimensions</strong> plus a conditional reasoning bonus:</p>
+                                <div class="hiw-formula">
+                                    <code>Score = w<sub>task</sub> &times; TaskMatch + w<sub>complexity</sub> &times; ComplexityFit + w<sub>cost</sub> &times; CostScore + w<sub>speed</sub> &times; SpeedScore + w<sub>context</sub> &times; ContextFit + 2.0 &times; ReasoningBonus</code>
+                                </div>
+                                <div class="hiw-dimensions">
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Task Match <span class="hiw-dim-weight">w=1.2</span></div>
+                                        <div class="hiw-dim-desc">How well does this model perform on the identified task? Uses the model's per-task benchmark scores, weighted 80% primary task + 15% per secondary task + versatility bonus.</div>
+                                    </div>
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Complexity Fit <span class="hiw-dim-weight">w=1.0</span></div>
+                                        <div class="hiw-dim-desc">Each model has a complexity sweet spot [min, max]. Queries within range score 0.85-1.0. Below range (overkill) penalizes gently. Above range (underpowered) penalizes severely.</div>
+                                    </div>
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Cost Efficiency <span class="hiw-dim-weight">w=0.8</span></div>
+                                        <div class="hiw-dim-desc">Estimated total cost = (input tokens &times; input price) + (output tokens &times; output price). Normalized so cheapest model = 1.0.</div>
+                                    </div>
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Speed <span class="hiw-dim-weight">w=0.7</span></div>
+                                        <div class="hiw-dim-desc">Combined score: 40% first-token latency + 60% generation throughput (tokens/sec). Both normalized across all models.</div>
+                                    </div>
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Context Fit <span class="hiw-dim-weight">w=0.5</span></div>
+                                        <div class="hiw-dim-desc">Checks if input + expected output fits the context window. Penalizes when utilization exceeds 50%, severely at 90%+.</div>
+                                    </div>
+                                    <div class="hiw-dim">
+                                        <div class="hiw-dim-name">Reasoning Bonus <span class="hiw-dim-weight">conditional</span></div>
+                                        <div class="hiw-dim-desc">Activates for high-complexity queries or explicit reasoning requests. Boosts models with chain-of-thought capabilities: o3-mini (+0.15), DeepSeek R1 (+0.12), Opus (+0.10).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hiw-section">
+                            <div class="hiw-step-header">
+                                <span class="hiw-step-num">04</span>
+                                <h3>Priority Modes</h3>
+                            </div>
+                            <div class="hiw-content">
+                                <p>Priority modes shift the weight distribution to favor different objectives:</p>
+                                <div class="hiw-priorities">
+                                    <div class="hiw-priority">
+                                        <div class="hiw-pri-name">Balanced</div>
+                                        <div class="hiw-pri-weights">task:1.2 &middot; complexity:1.0 &middot; cost:0.8 &middot; speed:0.7 &middot; context:0.5</div>
+                                    </div>
+                                    <div class="hiw-priority">
+                                        <div class="hiw-pri-name">Max Quality</div>
+                                        <div class="hiw-pri-weights">task:1.5 &middot; complexity:1.3 &middot; cost:0.2 &middot; speed:0.2 &middot; context:0.5</div>
+                                    </div>
+                                    <div class="hiw-priority">
+                                        <div class="hiw-pri-name">Max Speed</div>
+                                        <div class="hiw-pri-weights">task:0.8 &middot; complexity:0.5 &middot; cost:0.4 &middot; speed:1.5 &middot; context:0.3</div>
+                                    </div>
+                                    <div class="hiw-priority">
+                                        <div class="hiw-pri-name">Min Cost</div>
+                                        <div class="hiw-pri-weights">task:0.8 &middot; complexity:0.6 &middot; cost:1.5 &middot; speed:0.5 &middot; context:0.3</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Benchmark Tab -->
             <section id="tab-benchmark" class="tab-content">
                 <div class="benchmark-layout">
@@ -143,7 +373,7 @@
                                 <span class="btn-icon">&#x1f3c1;</span> Run Full Benchmark
                             </button>
                         </div>
-                        <p class="panel-description">Test the routing algorithm against a curated set of queries spanning different task types and complexity levels.</p>
+                        <p class="panel-description">Test the routing algorithm against 18 curated queries spanning all task types and complexity levels. See which models get selected and why.</p>
                         <div id="benchmark-results" class="benchmark-results"></div>
                     </div>
                 </div>
@@ -156,7 +386,7 @@
                         <div class="panel-header">
                             <h2>Model Registry</h2>
                         </div>
-                        <p class="panel-description">All available models and their capabilities, strengths, and pricing.</p>
+                        <p class="panel-description">All 12 models with their capabilities, pricing, complexity sweet spots, and per-task strength scores.</p>
                         <div id="model-registry" class="model-registry"></div>
                     </div>
                 </div>
@@ -169,7 +399,7 @@
                         <div class="panel-header">
                             <h2>API Keys & Configuration</h2>
                         </div>
-                        <p class="panel-description">Configure API keys to enable the "Route & Execute" feature. Keys are stored locally in your browser only.</p>
+                        <p class="panel-description">Configure API keys to enable the "Route & Execute" feature. Keys are stored locally in your browser only &mdash; never sent to any server except the LLM provider you're calling.</p>
                         <div class="settings-grid">
                             <div class="setting-group">
                                 <label class="setting-label">
@@ -219,7 +449,7 @@
 
                         <div class="setting-group" style="margin-top: 2rem;">
                             <h3>Router Weights</h3>
-                            <p class="panel-description">Fine-tune how the router scores models. These weights are multiplied with each signal score.</p>
+                            <p class="panel-description">Fine-tune how the router scores models. These weights multiply each signal score in the final ranking.</p>
                             <div class="weights-grid">
                                 <div class="weight-control">
                                     <label>Complexity Match</label>
@@ -255,7 +485,10 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>LLM Router &mdash; Intelligent model selection for every query. All routing runs locally in your browser.</p>
+            <div class="footer-inner">
+                <p>LLM Router &mdash; Intelligent model selection for every query.</p>
+                <p class="footer-sub">All routing runs locally in your browser. No data is sent anywhere unless you use "Route & Execute" with your own API keys.</p>
+            </div>
         </footer>
     </div>
 

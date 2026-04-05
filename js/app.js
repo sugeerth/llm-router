@@ -45,6 +45,14 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.add('active');
         document.getElementById(`tab-${tab}`).classList.add('active');
 
+        // Show/hide hero based on tab
+        const hero = document.getElementById('hero-section');
+        if (tab === 'router') {
+            hero.style.display = '';
+        } else {
+            hero.style.display = 'none';
+        }
+
         if (tab === 'models') ui.renderModelRegistry();
     });
 });

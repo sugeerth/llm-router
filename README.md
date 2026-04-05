@@ -2,7 +2,7 @@
 
 > Intelligent model routing for every query. Automatically selects the optimal LLM based on task type, complexity, cost, speed, and capability matching.
 
-**[Try it live](https://your-username.github.io/llm-router/)** | No backend required - runs entirely in your browser.
+**[Try it live](https://sugeerth.github.io/llm-router/)** | No backend required - runs entirely in your browser.
 
 ---
 
@@ -59,7 +59,7 @@ Plus a **Reasoning Bonus** for queries that benefit from chain-of-thought models
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/llm-router.git
+git clone https://github.com/sugeerth/llm-router.git
 cd llm-router
 
 # Serve with any static server

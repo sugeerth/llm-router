@@ -1,5 +1,6 @@
 /**
  * UI Renderer - All DOM manipulation and rendering logic.
+ * Provides deep insight into every routing decision.
  */
 
 import { PROVIDERS, MODELS, TASK_TYPES, getProvider } from './models.js';
@@ -20,18 +21,18 @@ const TASK_LABELS = {
 };
 
 const TASK_ICONS = {
-    [TASK_TYPES.CODE_GENERATION]: '&#x1f4bb;',
-    [TASK_TYPES.CODE_DEBUG]: '&#x1f41b;',
-    [TASK_TYPES.CREATIVE_WRITING]: '&#x270d;',
-    [TASK_TYPES.ANALYSIS]: '&#x1f50d;',
-    [TASK_TYPES.MATH_REASONING]: '&#x1f9ee;',
-    [TASK_TYPES.SUMMARIZATION]: '&#x1f4cb;',
-    [TASK_TYPES.TRANSLATION]: '&#x1f310;',
-    [TASK_TYPES.CONVERSATION]: '&#x1f4ac;',
-    [TASK_TYPES.FACTUAL_QA]: '&#x2753;',
-    [TASK_TYPES.SYSTEM_DESIGN]: '&#x1f3d7;',
-    [TASK_TYPES.DATA_EXTRACTION]: '&#x1f4e6;',
-    [TASK_TYPES.INSTRUCTION_FOLLOWING]: '&#x2705;',
+    [TASK_TYPES.CODE_GENERATION]: '\u{1f4bb}',
+    [TASK_TYPES.CODE_DEBUG]: '\u{1f41b}',
+    [TASK_TYPES.CREATIVE_WRITING]: '\u270d\ufe0f',
+    [TASK_TYPES.ANALYSIS]: '\u{1f50d}',
+    [TASK_TYPES.MATH_REASONING]: '\u{1f9ee}',
+    [TASK_TYPES.SUMMARIZATION]: '\u{1f4cb}',
+    [TASK_TYPES.TRANSLATION]: '\u{1f310}',
+    [TASK_TYPES.CONVERSATION]: '\u{1f4ac}',
+    [TASK_TYPES.FACTUAL_QA]: '\u2753',
+    [TASK_TYPES.SYSTEM_DESIGN]: '\u{1f3d7}\ufe0f',
+    [TASK_TYPES.DATA_EXTRACTION]: '\u{1f4e6}',
+    [TASK_TYPES.INSTRUCTION_FOLLOWING]: '\u2705',
 };
 
 export class UIRenderer {
@@ -39,24 +40,133 @@ export class UIRenderer {
         const { analysis, recommended, recommendedSignals, recommendedScore, allScores, explanation } = result;
         const provider = getProvider(recommended);
 
+        // Routing Flow Visualization
+        this._renderRoutingFlow(result);
+
         // Recommended model card
+        this._renderRecommendedCard(result);
+
+        // Analysis breakdown
+        this._renderAnalysis(analysis);
+
+        // Task classification detail
+        this._renderTaskScores(analysis);
+
+        // Model scores
+        this._renderModelRankings(allScores, result);
+
+        // Signal heatmap
+        this._renderSignalHeatmap(allScores);
+
+        // Explanation
+        const explEl = document.getElementById('routing-explanation');
+        explEl.innerHTML = this._renderMarkdown(explanation);
+
+        // Show results, hide empty state
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('routing-results').classList.remove('hidden');
+
+        // Routing time
+        const timeEl = document.getElementById('routing-time');
+        timeEl.textContent = `Routed in ${result.routingTimeMs.toFixed(1)}ms`;
+        timeEl.classList.remove('hidden');
+
+        // Animate in
+        document.querySelectorAll('.routing-results > *').forEach((el, i) => {
+            el.style.animationDelay = `${i * 0.06}s`;
+            el.classList.add('fade-in-up');
+        });
+    }
+
+    _renderRoutingFlow(result) {
+        const { analysis, recommended } = result;
+        const provider = getProvider(recommended);
+        const el = document.getElementById('routing-flow');
+
+        const complexityLabel = analysis.complexity < 0.3 ? 'Low' :
+            analysis.complexity < 0.6 ? 'Medium' : analysis.complexity < 0.8 ? 'High' : 'Very High';
+        const complexityColor = this._complexityColor(analysis.complexity);
+
+        el.innerHTML = `
+            <div class="flow-container">
+                <div class="flow-step">
+                    <div class="flow-step-icon">\u{1f4dd}</div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-label">Input</div>
+                        <div class="flow-step-value">${analysis.tokenEstimate} tokens</div>
+                    </div>
+                </div>
+                <div class="flow-connector"><div class="flow-line"></div><div class="flow-arrow">\u25b6</div></div>
+                <div class="flow-step">
+                    <div class="flow-step-icon">${TASK_ICONS[analysis.primaryTask] || '\u2753'}</div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-label">Task</div>
+                        <div class="flow-step-value">${TASK_LABELS[analysis.primaryTask]}</div>
+                    </div>
+                </div>
+                <div class="flow-connector"><div class="flow-line"></div><div class="flow-arrow">\u25b6</div></div>
+                <div class="flow-step">
+                    <div class="flow-step-icon" style="color: ${complexityColor}">\u{1f4ca}</div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-label">Complexity</div>
+                        <div class="flow-step-value" style="color: ${complexityColor}">${complexityLabel} (${(analysis.complexity * 100).toFixed(0)}%)</div>
+                    </div>
+                </div>
+                <div class="flow-connector"><div class="flow-line"></div><div class="flow-arrow">\u25b6</div></div>
+                <div class="flow-step flow-result" style="--provider-color: ${provider.color}">
+                    <div class="flow-step-icon"><span class="flow-provider-icon" style="background: ${provider.color}">${provider.icon}</span></div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-label">Routed to</div>
+                        <div class="flow-step-value">${recommended.name}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    _renderRecommendedCard(result) {
+        const { recommended, recommendedSignals, recommendedScore, allScores, analysis } = result;
+        const provider = getProvider(recommended);
         const recEl = document.getElementById('recommended-model');
+
+        const maxPossible = result.weights.task + result.weights.complexity + result.weights.cost + result.weights.speed + result.weights.context + 0.3;
+        const scorePct = Math.min(recommendedScore / maxPossible, 1);
+        const runnerUp = allScores[1];
+        const margin = recommendedScore - runnerUp.totalScore;
+
+        // Estimate cost
+        const estCost = (analysis.tokenEstimate / 1000) * recommended.costPer1kInput
+            + (analysis.expectedOutputLength / 1000) * recommended.costPer1kOutput;
+
         recEl.innerHTML = `
             <div class="rec-card" style="--provider-color: ${provider.color}">
-                <div class="rec-badge">RECOMMENDED</div>
+                <div class="rec-top-row">
+                    <div class="rec-badge">RECOMMENDED</div>
+                    <div class="rec-margin ${margin < 0.15 ? 'close-call' : ''}">
+                        ${margin < 0.15 ? 'Close call' : 'Clear winner'} &mdash; ${margin.toFixed(2)} pts ahead of ${runnerUp.model.name}
+                    </div>
+                </div>
                 <div class="rec-main">
                     <div class="rec-model-info">
                         <span class="provider-icon" style="background: ${provider.color}">${provider.icon}</span>
                         <div>
                             <h2 class="rec-model-name">${recommended.name}</h2>
-                            <span class="rec-provider">${provider.name}</span>
-                            <span class="rec-tier tier-${recommended.tier}">${recommended.tier}</span>
+                            <div class="rec-tags">
+                                <span class="rec-provider">${provider.name}</span>
+                                <span class="rec-tier tier-${recommended.tier}">${recommended.tier}</span>
+                                ${analysis.requiresReasoning ? '<span class="rec-reasoning-tag">Reasoning</span>' : ''}
+                            </div>
                         </div>
                     </div>
                     <div class="rec-score">
-                        <div class="score-ring" style="--score: ${recommendedScore / (result.weights.task + result.weights.complexity + result.weights.cost + result.weights.speed + result.weights.context + 0.3)}; --color: ${provider.color}">
-                            <span class="score-value">${(recommendedScore).toFixed(2)}</span>
-                        </div>
+                        <svg class="score-ring-svg" width="72" height="72" viewBox="0 0 72 72">
+                            <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"/>
+                            <circle cx="36" cy="36" r="30" fill="none" stroke="${provider.color}" stroke-width="4"
+                                stroke-dasharray="${scorePct * 188.5} 188.5"
+                                stroke-linecap="round" transform="rotate(-90 36 36)"
+                                class="score-ring-progress"/>
+                        </svg>
+                        <span class="score-center-text">${recommendedScore.toFixed(2)}</span>
                         <span class="score-label">Score</span>
                     </div>
                 </div>
@@ -77,110 +187,191 @@ export class UIRenderer {
                         <span class="meta-value">${(recommended.contextWindow / 1000).toFixed(0)}K</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-label">Quality</span>
-                        <span class="meta-value">${(recommended.qualityScore * 100).toFixed(0)}%</span>
+                        <span class="meta-label">Est. Cost</span>
+                        <span class="meta-value">$${estCost.toFixed(5)}</span>
                     </div>
                 </div>
             </div>
         `;
+    }
 
-        // Analysis breakdown
+    _renderAnalysis(analysis) {
         const analysisEl = document.getElementById('analysis-breakdown');
+        const complexityColor = this._complexityColor(analysis.complexity);
+
         analysisEl.innerHTML = `
             <div class="analysis-card">
-                <div class="analysis-icon">${TASK_ICONS[analysis.primaryTask] || '&#x2753;'}</div>
+                <div class="analysis-icon">${TASK_ICONS[analysis.primaryTask] || '\u2753'}</div>
                 <div class="analysis-label">Primary Task</div>
                 <div class="analysis-value">${TASK_LABELS[analysis.primaryTask] || analysis.primaryTask}</div>
             </div>
             <div class="analysis-card">
-                <div class="analysis-icon">&#x1f4ca;</div>
+                <div class="analysis-icon" style="color: ${complexityColor}">\u{1f4ca}</div>
                 <div class="analysis-label">Complexity</div>
                 <div class="analysis-value">
                     <div class="complexity-bar">
-                        <div class="complexity-fill" style="width: ${analysis.complexity * 100}%; background: ${this._complexityColor(analysis.complexity)}"></div>
+                        <div class="complexity-fill" style="width: ${analysis.complexity * 100}%; background: ${complexityColor}"></div>
                     </div>
                     <span>${(analysis.complexity * 100).toFixed(0)}%</span>
                 </div>
             </div>
             <div class="analysis-card">
-                <div class="analysis-icon">&#x1f4dd;</div>
+                <div class="analysis-icon">\u{1f4dd}</div>
                 <div class="analysis-label">Est. Input</div>
                 <div class="analysis-value">~${analysis.tokenEstimate} tokens</div>
             </div>
             <div class="analysis-card">
-                <div class="analysis-icon">&#x1f4e4;</div>
+                <div class="analysis-icon">\u{1f4e4}</div>
                 <div class="analysis-label">Est. Output</div>
                 <div class="analysis-value">~${analysis.expectedOutputLength} tokens</div>
             </div>
             ${analysis.requiresReasoning ? `
             <div class="analysis-card highlight">
-                <div class="analysis-icon">&#x1f9e0;</div>
+                <div class="analysis-icon">\u{1f9e0}</div>
                 <div class="analysis-label">Reasoning</div>
                 <div class="analysis-value">Required</div>
             </div>` : ''}
             ${analysis.secondaryTasks.length > 0 ? `
             <div class="analysis-card">
-                <div class="analysis-icon">&#x1f4cc;</div>
-                <div class="analysis-label">Secondary</div>
+                <div class="analysis-icon">\u{1f4cc}</div>
+                <div class="analysis-label">Secondary Tasks</div>
                 <div class="analysis-value secondary-tasks">${analysis.secondaryTasks.map(t => TASK_LABELS[t] || t).join(', ')}</div>
             </div>` : ''}
+            ${analysis.constraints.language ? `
+            <div class="analysis-card">
+                <div class="analysis-icon">\u{1f30d}</div>
+                <div class="analysis-label">Language</div>
+                <div class="analysis-value">${analysis.constraints.language}</div>
+            </div>` : ''}
+            ${analysis.constraints.format ? `
+            <div class="analysis-card">
+                <div class="analysis-icon">\u{1f4cb}</div>
+                <div class="analysis-label">Format</div>
+                <div class="analysis-value">${analysis.constraints.format}</div>
+            </div>` : ''}
         `;
+    }
 
-        // Model scores
+    _renderTaskScores(analysis) {
+        const el = document.getElementById('task-scores-detail');
+        const sorted = Object.entries(analysis.taskScores)
+            .sort((a, b) => b[1] - a[1]);
+
+        const maxScore = sorted[0][1];
+
+        el.innerHTML = `<div class="task-scores-grid">
+            ${sorted.filter(([, score]) => score > 0.01).map(([task, score]) => {
+                const isPrimary = task === analysis.primaryTask;
+                const isSecondary = analysis.secondaryTasks.includes(task);
+                const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                return `
+                    <div class="task-score-row ${isPrimary ? 'primary' : ''} ${isSecondary ? 'secondary' : ''}">
+                        <span class="task-score-icon">${TASK_ICONS[task] || ''}</span>
+                        <span class="task-score-name">${TASK_LABELS[task] || task}</span>
+                        ${isPrimary ? '<span class="task-badge primary-badge">PRIMARY</span>' : ''}
+                        ${isSecondary ? '<span class="task-badge secondary-badge">SECONDARY</span>' : ''}
+                        <div class="task-score-bar-wrap">
+                            <div class="task-score-bar" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="task-score-val">${(score * 100).toFixed(0)}%</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    _renderModelRankings(allScores, result) {
         const scoresEl = document.getElementById('model-scores');
+        const subtitleEl = document.getElementById('rankings-subtitle');
         const maxScore = allScores[0].totalScore;
+
+        subtitleEl.textContent = `(${allScores.length} models scored)`;
+
         scoresEl.innerHTML = allScores.map((item, i) => {
             const p = getProvider(item.model);
             const pct = (item.totalScore / maxScore) * 100;
+            const isTop = i === 0;
             return `
-                <div class="score-row ${i === 0 ? 'top' : ''}">
+                <div class="score-row ${isTop ? 'top' : ''}" title="${item.model.name}: task=${(item.signals.taskMatch*100).toFixed(0)}% complexity=${(item.signals.complexityFit*100).toFixed(0)}% cost=${(item.signals.costScore*100).toFixed(0)}% speed=${(item.signals.speedScore*100).toFixed(0)}%">
                     <div class="score-rank">${i + 1}</div>
                     <span class="provider-dot-small" style="background: ${p.color}"></span>
                     <span class="score-model-name">${item.model.name}</span>
                     <div class="score-bar-wrapper">
-                        <div class="score-bar" style="width: ${pct}%; background: ${p.color}"></div>
+                        <div class="score-bar" style="width: ${pct}%; background: ${isTop ? p.color : 'rgba(255,255,255,0.15)'}"></div>
                     </div>
                     <span class="score-number">${item.totalScore.toFixed(2)}</span>
                 </div>
             `;
         }).join('');
+    }
 
-        // Explanation
-        const explEl = document.getElementById('routing-explanation');
-        explEl.innerHTML = this._renderMarkdown(explanation);
+    _renderSignalHeatmap(allScores) {
+        const el = document.getElementById('signal-heatmap');
+        const signals = ['taskMatch', 'complexityFit', 'costScore', 'speedScore', 'contextFit'];
+        const signalLabels = ['Task', 'Complexity', 'Cost', 'Speed', 'Context'];
 
-        // Show results, hide empty state
-        document.getElementById('empty-state').classList.add('hidden');
-        document.getElementById('routing-results').classList.remove('hidden');
+        // Take top 8 models
+        const top = allScores.slice(0, 8);
 
-        // Routing time
-        const timeEl = document.getElementById('routing-time');
-        timeEl.textContent = `Routed in ${result.routingTimeMs.toFixed(1)}ms`;
-        timeEl.classList.remove('hidden');
+        el.innerHTML = `
+            <div class="heatmap-table">
+                <div class="heatmap-header">
+                    <div class="heatmap-corner"></div>
+                    ${signalLabels.map(l => `<div class="heatmap-col-label">${l}</div>`).join('')}
+                </div>
+                ${top.map((item, i) => {
+                    const p = getProvider(item.model);
+                    return `
+                        <div class="heatmap-row ${i === 0 ? 'top-row' : ''}">
+                            <div class="heatmap-row-label">
+                                <span class="provider-dot-small" style="background: ${p.color}"></span>
+                                ${item.model.name}
+                            </div>
+                            ${signals.map(sig => {
+                                const val = item.signals[sig];
+                                return `<div class="heatmap-cell" style="--heat: ${val}" title="${sig}: ${(val * 100).toFixed(0)}%">
+                                    <span>${(val * 100).toFixed(0)}</span>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
     }
 
     _renderSignalBars(signals, color) {
         const signalDefs = [
-            { key: 'taskMatch', label: 'Task Match' },
-            { key: 'complexityFit', label: 'Complexity Fit' },
-            { key: 'costScore', label: 'Cost Efficiency' },
-            { key: 'speedScore', label: 'Speed' },
-            { key: 'contextFit', label: 'Context Fit' },
+            { key: 'taskMatch', label: 'Task Match', desc: 'Model strength on identified task type' },
+            { key: 'complexityFit', label: 'Complexity Fit', desc: 'Query complexity vs model sweet spot' },
+            { key: 'costScore', label: 'Cost Efficiency', desc: 'Estimated cost relative to all models' },
+            { key: 'speedScore', label: 'Speed', desc: 'Latency + throughput combined' },
+            { key: 'contextFit', label: 'Context Fit', desc: 'Context window utilization' },
         ];
 
         return `<div class="signal-bars">
-            ${signalDefs.map(({ key, label }) => {
+            ${signalDefs.map(({ key, label, desc }) => {
                 const val = signals[key];
+                const barColor = val > 0.8 ? color : val > 0.5 ? color : 'rgba(255,255,255,0.2)';
                 return `
-                    <div class="signal-bar-item">
+                    <div class="signal-bar-item" title="${desc}">
                         <span class="signal-label">${label}</span>
                         <div class="signal-track">
-                            <div class="signal-fill" style="width: ${val * 100}%; background: ${color}"></div>
+                            <div class="signal-fill" style="width: ${val * 100}%; background: ${barColor}; opacity: ${0.4 + val * 0.6}"></div>
                         </div>
                         <span class="signal-value">${(val * 100).toFixed(0)}%</span>
                     </div>
                 `;
             }).join('')}
+            ${signals.reasoningBonus > 0 ? `
+                <div class="signal-bar-item reasoning-signal">
+                    <span class="signal-label">Reasoning Bonus</span>
+                    <div class="signal-track">
+                        <div class="signal-fill" style="width: ${signals.reasoningBonus * 100 / 0.15 * 100}%; background: #a78bfa"></div>
+                    </div>
+                    <span class="signal-value">+${(signals.reasoningBonus * 100).toFixed(0)}%</span>
+                </div>
+            ` : ''}
         </div>`;
     }
 
@@ -208,15 +399,10 @@ export class UIRenderer {
             : '';
 
         const responseEl = document.getElementById('exec-response');
-        // Simple markdown-ish rendering
         let html = this._escapeHtml(result.content);
-        // Code blocks
         html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>');
-        // Inline code
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        // Bold
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        // Line breaks
         html = html.replace(/\n/g, '<br>');
 
         responseEl.innerHTML = html;
@@ -294,9 +480,13 @@ export class UIRenderer {
                     </div>
                 </div>
                 <div class="model-card-complexity">
-                    <span class="stat-label">Complexity Range</span>
+                    <span class="stat-label">Complexity Sweet Spot</span>
                     <div class="range-bar">
                         <div class="range-fill" style="left: ${model.complexityRange[0] * 100}%; width: ${(model.complexityRange[1] - model.complexityRange[0]) * 100}%; background: ${provider.color}"></div>
+                    </div>
+                    <div class="range-labels">
+                        <span>Simple</span>
+                        <span>Complex</span>
                     </div>
                 </div>
                 <div class="model-card-strengths">
@@ -308,6 +498,25 @@ export class UIRenderer {
 
     renderBenchmarkResults(results) {
         const el = document.getElementById('benchmark-results');
+
+        // Compute distribution
+        const modelCounts = {};
+        results.forEach(r => {
+            modelCounts[r.recommended.name] = (modelCounts[r.recommended.name] || 0) + 1;
+        });
+
+        const distribution = Object.entries(modelCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count]) => {
+                const model = MODELS.find(m => m.name === name);
+                const p = model ? getProvider(model) : { color: '#666' };
+                return `<div class="dist-bar-row">
+                    <span class="dist-label"><span class="provider-dot-small" style="background: ${p.color}"></span>${name}</span>
+                    <div class="dist-bar" style="width: ${(count / results.length) * 100}%; background: ${p.color}"></div>
+                    <span class="dist-count">${count}/${results.length}</span>
+                </div>`;
+            }).join('');
+
         el.innerHTML = `
             <div class="benchmark-summary">
                 <div class="bench-stat">
@@ -323,6 +532,12 @@ export class UIRenderer {
                     <span class="bench-stat-label">Avg Routing Time</span>
                 </div>
             </div>
+
+            <div class="bench-distribution">
+                <h4>Model Selection Distribution</h4>
+                <div class="dist-bars">${distribution}</div>
+            </div>
+
             <div class="benchmark-table-wrapper">
                 <table class="benchmark-table">
                     <thead>
@@ -333,6 +548,7 @@ export class UIRenderer {
                             <th>Recommended</th>
                             <th>Score</th>
                             <th>Runner-up</th>
+                            <th>Margin</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -340,9 +556,10 @@ export class UIRenderer {
                             const p = getProvider(r.recommended);
                             const runnerUp = r.allScores[1];
                             const rup = getProvider(runnerUp.model);
+                            const margin = r.recommendedScore - runnerUp.totalScore;
                             return `
                                 <tr>
-                                    <td class="bench-query">${this._escapeHtml(r.analysis.query.slice(0, 80))}${r.analysis.query.length > 80 ? '...' : ''}</td>
+                                    <td class="bench-query">${this._escapeHtml(r.analysis.query.slice(0, 70))}${r.analysis.query.length > 70 ? '...' : ''}</td>
                                     <td><span class="task-tag">${TASK_LABELS[r.analysis.primaryTask] || r.analysis.primaryTask}</span></td>
                                     <td>
                                         <div class="mini-complexity">
@@ -359,6 +576,7 @@ export class UIRenderer {
                                         <span class="provider-dot-small" style="background: ${rup.color}"></span>
                                         ${runnerUp.model.name}
                                     </td>
+                                    <td class="bench-margin ${margin < 0.15 ? 'close' : ''}">${margin.toFixed(2)}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -366,13 +584,5 @@ export class UIRenderer {
                 </table>
             </div>
         `;
-    }
-
-    showLoading(element) {
-        element.classList.add('loading');
-    }
-
-    hideLoading(element) {
-        element.classList.remove('loading');
     }
 }
