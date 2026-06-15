@@ -6,10 +6,35 @@
 import { LLMRouter } from './router.js';
 import { UIRenderer } from './ui.js';
 import { ModelExecutor } from './executor.js';
+import { CostCascade } from './cascade.js';
 
 const router = new LLMRouter();
 const ui = new UIRenderer();
 const executor = new ModelExecutor();
+const cascade = new CostCascade(executor);
+
+// ── Session savings (cumulative across queries, persisted locally) ──
+const SAVINGS_KEY = 'llm-router-savings';
+function loadSavings() {
+    try { return JSON.parse(localStorage.getItem(SAVINGS_KEY)) || { queries: 0, totalCost: 0, baselineCost: 0 }; }
+    catch { return { queries: 0, totalCost: 0, baselineCost: 0 }; }
+}
+let sessionSavings = loadSavings();
+
+// ── Key onboarding ──
+function hasAnyKey() {
+    const k = executor.getKeys();
+    return !!(k.openai || k.anthropic || k.google || k.openrouter);
+}
+function updateOnboarding() {
+    const b = document.getElementById('onboarding-banner');
+    if (b) b.classList.toggle('hidden', hasAnyKey());
+}
+
+// ── Cascade quality bar ──
+function qualityLabel(v) { return v < 0.34 ? 'thrifty' : v < 0.67 ? 'balanced' : 'strict'; }
+let cascadeQuality = parseFloat(localStorage.getItem('llm-router-quality') ?? '0.5');
+if (Number.isNaN(cascadeQuality)) cascadeQuality = 0.5;
 
 // Benchmark queries
 const BENCHMARK_QUERIES = [
@@ -119,6 +144,75 @@ document.getElementById('route-and-run-btn').addEventListener('click', async () 
     }
 });
 
+// ──────────────────────────────────────────────
+// Smart Cost Cascade
+// ──────────────────────────────────────────────
+
+const qEl = document.getElementById('cascade-quality');
+const qValEl = document.getElementById('cascade-quality-val');
+if (qEl) {
+    qEl.value = cascadeQuality;
+    if (qValEl) qValEl.textContent = qualityLabel(cascadeQuality);
+    qEl.addEventListener('input', () => {
+        cascadeQuality = parseFloat(qEl.value);
+        if (qValEl) qValEl.textContent = qualityLabel(cascadeQuality);
+        localStorage.setItem('llm-router-quality', String(cascadeQuality));
+    });
+}
+
+document.getElementById('onboarding-settings')?.addEventListener('click', () => {
+    document.querySelector('.nav-btn[data-tab="settings"]').click();
+});
+
+document.getElementById('cascade-btn').addEventListener('click', async () => {
+    const query = queryInput.value.trim();
+    if (!query) return;
+
+    if (!hasAnyKey()) {
+        updateOnboarding();
+        document.querySelector('.nav-btn[data-tab="settings"]').click();
+        showToast('Add an API key to run the cascade');
+        return;
+    }
+
+    // Cascade output takes over the results panel
+    ['routing-results', 'execution-results', 'routing-time', 'empty-state']
+        .forEach(id => document.getElementById(id).classList.add('hidden'));
+
+    const priority = document.getElementById('priority-select').value;
+    const analysis = router.route(query, priority).analysis;
+
+    const btn = document.getElementById('cascade-btn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+    try {
+        const result = await cascade.run(query, analysis, {
+            qualityBar: cascadeQuality,
+            onStep: (state) => ui.renderCascade(state),
+        });
+        sessionSavings.queries += 1;
+        sessionSavings.totalCost += result.totalCost;
+        sessionSavings.baselineCost += result.baselineCost;
+        localStorage.setItem(SAVINGS_KEY, JSON.stringify(sessionSavings));
+        ui.renderSessionSavings(sessionSavings);
+    } catch (err) {
+        const cr = document.getElementById('cascade-results');
+        cr.classList.remove('hidden');
+        cr.innerHTML = '';
+        const d = document.createElement('div');
+        d.className = 'cascade-error exec-error';
+        d.textContent = err.message;
+        cr.appendChild(d);
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+    }
+});
+
+// Initial UI state
+updateOnboarding();
+ui.renderSessionSavings(sessionSavings);
+
 // Clear button
 document.getElementById('clear-btn').addEventListener('click', () => {
     queryInput.value = '';
@@ -127,6 +221,7 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     document.getElementById('empty-state').classList.remove('hidden');
     document.getElementById('routing-results').classList.add('hidden');
     document.getElementById('execution-results').classList.add('hidden');
+    document.getElementById('cascade-results').classList.add('hidden');
     document.getElementById('routing-time').classList.add('hidden');
 });
 
@@ -175,6 +270,7 @@ document.getElementById('save-keys').addEventListener('click', () => {
         google: document.getElementById('key-google').value.trim(),
         openrouter: document.getElementById('key-openrouter').value.trim(),
     });
+    updateOnboarding();
     showToast('API keys saved');
 });
 
@@ -184,6 +280,7 @@ document.getElementById('clear-keys').addEventListener('click', () => {
     document.getElementById('key-anthropic').value = '';
     document.getElementById('key-google').value = '';
     document.getElementById('key-openrouter').value = '';
+    updateOnboarding();
     showToast('API keys cleared');
 });
 

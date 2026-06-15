@@ -40,42 +40,52 @@ export class ModelExecutor {
      * Execute a query against a specific model.
      * Tries provider-native API first, falls back to OpenRouter.
      */
-    async execute(model, query) {
+    async execute(model, query, opts = {}) {
         const startTime = performance.now();
 
         // Try OpenRouter first as universal fallback
         if (this.keys.openrouter) {
-            return this._executeOpenRouter(model, query, startTime);
+            return this._executeOpenRouter(model, query, startTime, opts);
         }
 
         // Try native provider API
         switch (model.provider) {
             case 'openai':
-                if (this.keys.openai) return this._executeOpenAI(model, query, startTime);
+                if (this.keys.openai) return this._executeOpenAI(model, query, startTime, opts);
                 break;
             case 'anthropic':
-                if (this.keys.anthropic) return this._executeAnthropic(model, query, startTime);
+                if (this.keys.anthropic) return this._executeAnthropic(model, query, startTime, opts);
                 break;
             case 'google':
-                if (this.keys.google) return this._executeGoogle(model, query, startTime);
+                if (this.keys.google) return this._executeGoogle(model, query, startTime, opts);
                 break;
         }
 
         throw new Error(`No API key configured for ${model.provider}. Add a key in Settings, or use an OpenRouter key for universal access.`);
     }
 
-    async _executeOpenAI(model, query, startTime) {
+    /** Build an OpenAI-style messages array, optionally with a system prompt. */
+    _messages(query, opts) {
+        return opts.system
+            ? [{ role: 'system', content: opts.system }, { role: 'user', content: query }]
+            : [{ role: 'user', content: query }];
+    }
+
+    async _executeOpenAI(model, query, startTime, opts = {}) {
+        const body = {
+            model: model.id,
+            messages: this._messages(query, opts),
+            max_tokens: opts.maxTokens || 4096,
+        };
+        // o-series reasoning models reject temperature / max_tokens overrides
+        if (opts.temperature != null && !/^o[0-9]/.test(model.id)) body.temperature = opts.temperature;
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.keys.openai}`,
             },
-            body: JSON.stringify({
-                model: model.id,
-                messages: [{ role: 'user', content: query }],
-                max_tokens: 4096,
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
@@ -92,14 +102,19 @@ export class ModelExecutor {
         };
     }
 
-    async _executeAnthropic(model, query, startTime) {
-        // Anthropic requires CORS proxy or backend - use OpenRouter as fallback
-        // Direct Anthropic API doesn't support browser CORS
+    async _executeAnthropic(model, query, startTime, opts = {}) {
+        // Prefer OpenRouter when present (most reliable browser path)
         if (this.keys.openrouter) {
-            return this._executeOpenRouter(model, query, startTime);
+            return this._executeOpenRouter(model, query, startTime, opts);
         }
 
-        // Try direct API with a note about CORS
+        const body = {
+            model: model.id,
+            max_tokens: opts.maxTokens || 4096,
+            messages: [{ role: 'user', content: query }],
+        };
+        if (opts.system) body.system = opts.system;
+        if (opts.temperature != null) body.temperature = opts.temperature;
         const res = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -108,11 +123,7 @@ export class ModelExecutor {
                 'anthropic-version': '2023-06-01',
                 'anthropic-dangerous-direct-browser-access': 'true',
             },
-            body: JSON.stringify({
-                model: model.id,
-                max_tokens: 4096,
-                messages: [{ role: 'user', content: query }],
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
@@ -129,15 +140,18 @@ export class ModelExecutor {
         };
     }
 
-    async _executeGoogle(model, query, startTime) {
+    async _executeGoogle(model, query, startTime, opts = {}) {
         const apiModel = model.id === 'gemini-2.0-flash' ? 'gemini-2.0-flash' : 'gemini-2.5-pro-preview-05-06';
+        const body = {
+            contents: [{ parts: [{ text: query }] }],
+            generationConfig: { maxOutputTokens: opts.maxTokens || 4096 },
+        };
+        if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] };
+        if (opts.temperature != null) body.generationConfig.temperature = opts.temperature;
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${apiModel}:generateContent?key=${this.keys.google}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: query }] }],
-                generationConfig: { maxOutputTokens: 4096 },
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {
@@ -155,7 +169,7 @@ export class ModelExecutor {
         };
     }
 
-    async _executeOpenRouter(model, query, startTime) {
+    async _executeOpenRouter(model, query, startTime, opts = {}) {
         // Map model IDs to OpenRouter model IDs
         const orModelMap = {
             'gpt-4o': 'openai/gpt-4o',
@@ -174,6 +188,12 @@ export class ModelExecutor {
 
         const orModel = orModelMap[model.id] || model.id;
 
+        const body = {
+            model: orModel,
+            messages: this._messages(query, opts),
+            max_tokens: opts.maxTokens || 4096,
+        };
+        if (opts.temperature != null && !/^o[0-9]/.test(model.id)) body.temperature = opts.temperature;
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -182,11 +202,7 @@ export class ModelExecutor {
                 'HTTP-Referer': window.location.origin,
                 'X-Title': 'LLM Router',
             },
-            body: JSON.stringify({
-                model: orModel,
-                messages: [{ role: 'user', content: query }],
-                max_tokens: 4096,
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!res.ok) {

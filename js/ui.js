@@ -424,6 +424,128 @@ export class UIRenderer {
         return div.innerHTML;
     }
 
+    // ──────────────────────────────────────────────
+    // Smart Cost Cascade
+    // ──────────────────────────────────────────────
+
+    _fmtMoney(c) {
+        if (!c) return '$0';
+        if (c < 0.001) return '$' + c.toFixed(6);
+        if (c < 1) return '$' + c.toFixed(4);
+        return '$' + c.toFixed(2);
+    }
+
+    /** Render (or live-update) the cascade panel from an engine state object. */
+    renderCascade(state) {
+        const el = document.getElementById('cascade-results');
+        el.classList.remove('hidden');
+        document.getElementById('empty-state').classList.add('hidden');
+
+        const dash = state.done ? this._cascadeDashFinal(state) : this._cascadeDashLive(state);
+        const ladder = state.steps.map((s, i) => this._cascadeRung(s, i, state.target)).join('');
+        let answer = '';
+        if (state.done && state.accepted && state.accepted.answer) {
+            const p = getProvider(state.accepted.model);
+            answer = `
+                <div class="cascade-answer-wrap fade-in-up">
+                    <div class="cascade-answer-head">
+                        <h3>Answer</h3>
+                        <span class="cascade-answer-by"><span class="provider-dot-small" style="background:${p.color}"></span> ${state.accepted.model.name}</span>
+                    </div>
+                    <div class="cascade-answer">${this._renderAnswerMarkdown(state.accepted.answer)}</div>
+                </div>`;
+        }
+        el.innerHTML = `<div class="cascade-panel">${dash}<div class="cascade-ladder">${ladder}</div>${answer}</div>`;
+    }
+
+    _cascadeDashLive(state) {
+        return `
+            <div class="cascade-dash live">
+                <span class="loading-dots"><span></span><span></span><span></span></span>
+                <span class="dash-live-text">Finding the cheapest model that clears the quality bar (${state.target}/100)…</span>
+            </div>`;
+    }
+
+    _cascadeDashFinal(state) {
+        const pct = Math.round(state.savingsPct * 100);
+        const p = getProvider(state.accepted.model);
+        return `
+            <div class="cascade-dash final">
+                <div class="dash-cell hero ${pct > 0 ? 'save' : 'flat'}">
+                    <span class="dash-val">${pct > 0 ? pct + '%' : '0%'}</span>
+                    <span class="dash-label">cost saved vs always&#8209;${this._escapeHtml(state.top.name)}</span>
+                </div>
+                <div class="dash-cell">
+                    <span class="dash-val">${this._fmtMoney(state.totalCost)}</span>
+                    <span class="dash-label">this query</span>
+                </div>
+                <div class="dash-cell">
+                    <span class="dash-val strike">${this._fmtMoney(state.baselineCost)}</span>
+                    <span class="dash-label">baseline</span>
+                </div>
+                <div class="dash-cell">
+                    <span class="dash-val"><span class="provider-dot-small" style="background:${p.color}"></span> ${this._escapeHtml(state.accepted.model.name)}</span>
+                    <span class="dash-label">answered by · ${state.attempts} tried</span>
+                </div>
+            </div>`;
+    }
+
+    _cascadeRung(s, i, target) {
+        const p = getProvider(s.model);
+        const statusText = {
+            running: 'Running…', grading: 'Grading…',
+            accepted: i === 0 ? 'Accepted — cheapest worked' : 'Accepted', escalated: 'Below bar — escalating', error: 'Failed',
+        }[s.status] || '';
+        let scoreChip = '';
+        if (s.score != null) {
+            const pass = s.score >= target;
+            scoreChip = `<span class="rung-score ${pass ? 'pass' : 'fail'}">${s.score}/100${s.heuristic ? '*' : ''}</span>`;
+        } else if (s.status === 'accepted') {
+            scoreChip = `<span class="rung-score top">final rung</span>`;
+        }
+        const sub = s.error ? this._escapeHtml(s.error)
+            : (s.gradeReason ? this._escapeHtml(s.gradeReason) : (s.status === 'running' ? 'calling model…' : ''));
+        return `
+            <div class="cascade-rung ${s.status}">
+                <div class="rung-idx">${i + 1}</div>
+                <span class="provider-dot-small" style="background:${p.color}"></span>
+                <div class="rung-main">
+                    <div class="rung-model">${this._escapeHtml(s.model.name)} <span class="rung-tier tier-${s.model.tier}">${s.model.tier}</span></div>
+                    ${sub ? `<div class="rung-sub">${sub}</div>` : ''}
+                </div>
+                <div class="rung-meta">
+                    ${scoreChip}
+                    ${s.cost ? `<span class="rung-cost">${this._fmtMoney(s.cost)}</span>` : ''}
+                    <span class="rung-status">${statusText}</span>
+                </div>
+            </div>`;
+    }
+
+    _renderAnswerMarkdown(text) {
+        let html = this._escapeHtml(text);
+        // fenced code — protect newlines from the <br> pass below
+        html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) =>
+            '<pre><code>' + code.replace(/\n/g, '\x00') + '</code></pre>');
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/^#{3,} (.*)$/gm, '<h4>$1</h4>')
+                   .replace(/^## (.*)$/gm, '<h3>$1</h3>')
+                   .replace(/^# (.*)$/gm, '<h3>$1</h3>');
+        html = html.replace(/\n/g, '<br>');
+        html = html.replace(/\x00/g, '\n');
+        return html;
+    }
+
+    /** Header chip + settings: cumulative savings across the session. */
+    renderSessionSavings(stats) {
+        const chip = document.getElementById('savings-chip');
+        if (!chip) return;
+        if (!stats || !stats.queries) { chip.classList.add('hidden'); return; }
+        const pct = stats.baselineCost > 0 ? Math.round((1 - stats.totalCost / stats.baselineCost) * 100) : 0;
+        chip.classList.remove('hidden');
+        chip.innerHTML = `<span class="savings-dot"></span> Saved <b>${this._fmtMoney(Math.max(0, stats.baselineCost - stats.totalCost))}</b> (${pct}%) over ${stats.queries} ${stats.queries === 1 ? 'query' : 'queries'}`;
+    }
+
     renderModelRegistry() {
         const el = document.getElementById('model-registry');
         const grouped = {};
