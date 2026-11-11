@@ -1,0 +1,55 @@
+{
+  "name": "@sugeerth/llm-router",
+  "version": "2.0.0",
+  "description": "One free, OpenAI-, Anthropic- and Ollama-compatible endpoint for every LLM. Routes each request to the best free model you have (local or free cloud tiers) and fails over automatically. Zero dependencies.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./worker": "./src/worker.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "llm-router": "bin/llm-router.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "js/",
+    "css/",
+    "index.html",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/llm-router.js serve",
+    "test": "node --test test/*.test.js",
+    "doctor": "node bin/llm-router.js doctor"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "llm",
+    "router",
+    "openai",
+    "anthropic",
+    "ollama",
+    "proxy",
+    "gateway",
+    "free",
+    "groq",
+    "gemini",
+    "openrouter",
+    "failover",
+    "claude-code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugeerth/llm-router.git"
+  },
+  "homepage": "https://sugeerth.github.io/llm-router/",
+  "bugs": "https://github.com/sugeerth/llm-router/issues",
+  "license": "MIT"
+}

@@ -1,0 +1,14 @@
+{
+  "providers": [
+    { "id": "gpu-box", "baseURL": "http://192.168.1.20:8000/v1" },
+    { "id": "mistral", "enabled": false }
+  ],
+  "aliases": {
+    "coder": "best",
+    "gpt-4o": "github/openai/gpt-4o"
+  },
+  "profiles": {
+    "gpu-box/my-finetune": { "quality": 0.88, "tools": true, "context": 32768 }
+  },
+  "maxAttempts": 4
+}

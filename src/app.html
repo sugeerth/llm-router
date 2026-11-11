@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llm-router</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1f9ed;</text></svg>">
+<style>
+:root {
+  --bg: #f7f7f8; --panel: #ffffff; --text: #18181b; --muted: #6b7280; --border: #e4e4e7;
+  --accent: #4f46e5; --accent-text: #ffffff; --user: #eef2ff; --ok: #16a34a; --warn: #b45309; --err: #dc2626;
+  --code: #f4f4f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f12; --panel: #18181d; --text: #ececf1; --muted: #9ca3af; --border: #2c2c33;
+    --accent: #818cf8; --accent-text: #0f0f12; --user: #232347; --ok: #4ade80; --warn: #fbbf24; --err: #f87171;
+    --code: #0b0b0e;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.app { max-width: 860px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding: 0 16px; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 17px; margin-right: auto; }
+.brand span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+select, button, textarea { font: inherit; color: inherit; }
+select { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 280px; }
+.pill { font-size: 13px; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+.dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); }
+#providers { display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-top: 10px; font-size: 14px; }
+#providers.open { display: block; }
+#providers ul { list-style: none; margin: 0; padding: 0; }
+#providers li { padding: 3px 0; color: var(--muted); }
+#providers li.ready { color: var(--text); }
+#providers a { color: var(--accent); }
+main { flex: 1; padding: 18px 0; display: flex; flex-direction: column; gap: 14px; }
+.empty { margin: auto; text-align: center; color: var(--muted); max-width: 520px; }
+.empty h1 { color: var(--text); font-size: 22px; margin: 0 0 6px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+.chip { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.chip:hover { border-color: var(--accent); }
+.msg { max-width: 100%; }
+.msg.user { align-self: flex-end; background: var(--user); border-radius: 14px 14px 4px 14px; padding: 9px 13px; max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot .body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.bot pre { background: var(--code); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.error { color: var(--err); }
+.typing::after { content: "▍"; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+footer { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 14px; border-top: 1px solid var(--border); }
+form { display: flex; gap: 8px; align-items: flex-end; }
+textarea { flex: 1; resize: none; min-height: 46px; max-height: 200px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; outline: none; }
+textarea:focus { border-color: var(--accent); }
+.send { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 12px; padding: 0 18px; height: 46px; font-weight: 600; cursor: pointer; }
+.send:disabled { opacity: .5; cursor: default; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.hint code { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+.link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">llm-router<span>one free endpoint for every LLM</span></div>
+    <label for="model" class="hint" style="margin:0">Model</label>
+    <select id="model" aria-label="Model"></select>
+    <button class="pill" id="status" type="button" aria-expanded="false"><span class="dot"></span>connecting…</button>
+  </header>
+  <div id="providers" aria-live="polite"></div>
+
+  <main id="chat" aria-live="polite">
+    <div class="empty" id="empty">
+      <h1>Ask anything</h1>
+      <div>Each message goes to the best <b>free</b> model you have: local or free cloud tiers. If one is busy, the next one answers.</div>
+      <div class="chips">
+        <button class="chip" type="button">Explain recursion like I'm 10</button>
+        <button class="chip" type="button">Write a Python function to dedupe a list, keeping order</button>
+        <button class="chip" type="button">Prove that the square root of 2 is irrational</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <form id="form">
+      <textarea id="input" rows="1" placeholder="Message (Enter to send, Shift+Enter for a new line)" aria-label="Message"></textarea>
+      <button class="send" id="send" type="submit">Send</button>
+    </form>
+    <div class="hint">
+      <span>Use from your apps: base_url <code id="base"></code> · model <code>auto</code></span>
+      <button class="link" id="copy" type="button">copy</button>
+      <button class="link" id="clear" type="button">new chat</button>
+    </div>
+  </footer>
+</div>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const chat = $('#chat'), input = $('#input'), sendBtn = $('#send'), modelSel = $('#model');
+  const history = [];
+  let busy = false;
+  let key = null;
+  try { key = sessionStorage.getItem('llm-router-key'); } catch {}
+  const base = location.origin + '/v1';
+  $('#base').textContent = base;
+
+  async function api(path, opts = {}, retried = false) {
+    const headers = { 'content-type': 'application/json', ...(opts.headers || {}) };
+    if (key) headers.authorization = 'Bearer ' + key;
+    const res = await fetch(path, { ...opts, headers });
+    if (res.status === 401 && !retried) {
+      const k = prompt('This llm-router requires an API key:');
+      if (k) {
+        key = k;
+        try { sessionStorage.setItem('llm-router-key', k); } catch {}
+        return api(path, opts, true);
+      }
+    }
+    return res;
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // Plain text with ``` fenced code blocks rendered as <pre>; never innerHTML.
+  function renderText(target, text) {
+    target.textContent = '';
+    const parts = text.split('```');
+    parts.forEach((part, i) => {
+      if (i % 2 === 1) {
+        const pre = el('pre');
+        pre.textContent = part.replace(/^[\w+-]*\n/, '').replace(/\n+$/, '');
+        target.appendChild(pre);
+      } else {
+        // trim blank lines that touch a code block (the <pre> already has margins)
+        if (i > 0) part = part.replace(/^\n+/, '');
+        if (i < parts.length - 1) part = part.replace(/\n+$/, '');
+        if (part) target.appendChild(document.createTextNode(part));
+      }
+    });
+  }
+
+  async function loadStatus() {
+    try {
+      const [st, models] = await Promise.all([
+        api('/v1/router').then(r => r.json()),
+        api('/v1/models').then(r => r.json()),
+      ]);
+      const n = st.models || 0;
+      const pill = $('#status');
+      pill.innerHTML = '';
+      pill.appendChild(el('span', 'dot ' + (n ? 'ok' : 'warn')));
+      pill.appendChild(document.createTextNode(n ? `${n} models · ${st.allowPaid ? 'paid allowed' : 'free only'}` : 'no models yet: click'));
+
+      const box = $('#providers');
+      box.textContent = '';
+      const ul = el('ul');
+      for (const p of st.providers) {
+        if (p.state === 'ready') {
+          ul.appendChild(el('li', 'ready', `✓ ${p.name}: ${p.models} model${p.models === 1 ? '' : 's'}${p.local ? ' (local)' : ''}`));
+        } else if (p.state === 'no-key' && p.free && p.signup) {
+          const li = el('li', null, `· ${p.name}: set ${p.keyEnv}, `);
+          const a = el('a', null, 'get a free key');
+          a.href = p.signup; a.target = '_blank'; a.rel = 'noopener';
+          li.appendChild(a);
+          ul.appendChild(li);
+        }
+      }
+      const offline = st.providers.filter(p => p.local && p.state !== 'ready').map(p => p.name);
+      if (offline.length) ul.appendChild(el('li', null, `· Local, not running: ${offline.join(', ')} (detected automatically when started)`));
+      box.appendChild(ul);
+      if (!n) box.classList.add('open');
+
+      const current = modelSel.value || 'auto';
+      const short = { auto: 'auto (right-sized)', fast: 'fast (quickest)', best: 'best (strongest)', local: 'local (private)' };
+      modelSel.textContent = '';
+      const groups = {};
+      for (const m of models.data) {
+        const g = m.owned_by === 'llm-router' ? 'Smart routing' : m.owned_by;
+        (groups[g] ||= []).push(m);
+      }
+      for (const [g, list] of Object.entries(groups)) {
+        const og = document.createElement('optgroup');
+        og.label = g;
+        for (const m of list) {
+          const o = el('option', null, m.owned_by === 'llm-router' ? (short[m.id] || `${m.id} (alias)`) : m.id.slice(g.length + 1));
+          o.value = m.id;
+          if (m.description) o.title = m.description;
+          og.appendChild(o);
+        }
+        modelSel.appendChild(og);
+      }
+      modelSel.value = [...modelSel.options].some(o => o.value === current) ? current : 'auto';
+    } catch (err) {
+      $('#status').textContent = 'router not reachable';
+    }
+  }
+
+  async function send(text) {
+    if (busy || !text.trim()) return;
+    busy = true; sendBtn.disabled = true;
+    $('#empty')?.remove();
+    history.push({ role: 'user', content: text });
+    chat.appendChild(el('div', 'msg user', text));
+    const bot = el('div', 'msg bot');
+    const body = el('div', 'body typing');
+    const meta = el('div', 'meta');
+    bot.append(body, meta);
+    chat.appendChild(bot);
+    bot.scrollIntoView({ block: 'end' });
+
+    const t0 = performance.now();
+    let answer = '';
+    try {
+      const res = await api('/v1/chat/completions', {
+        method: 'POST',
+        body: JSON.stringify({ model: modelSel.value || 'auto', messages: history, stream: true }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error?.message || `HTTP ${res.status}`);
+      }
+      const h = (k) => res.headers.get('x-llm-router-' + k);
+      const routed = h('model');
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, i); buf = buf.slice(i + 2);
+          for (const line of block.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            let obj; try { obj = JSON.parse(data); } catch { continue; }
+            if (obj.error) throw new Error(obj.error.message || 'stream error');
+            const d = obj.choices?.[0]?.delta?.content;
+            if (d) { answer += d; renderText(body, answer); bot.scrollIntoView({ block: 'end' }); }
+          }
+        }
+      }
+      history.push({ role: 'assistant', content: answer });
+      const secs = ((performance.now() - t0) / 1000).toFixed(1);
+      const attempts = Number(h('attempts') || 1);
+      meta.textContent = [routed, h('strategy'), `${secs}s`, attempts > 1 ? `${attempts} attempts (failover)` : null, h('reason')]
+        .filter(Boolean).join(' · ');
+      if (!answer) body.textContent = '(empty answer)';
+    } catch (err) {
+      history.pop();
+      body.classList.add('error');
+      body.textContent = err.message;
+      if (/No models/.test(err.message)) $('#providers').classList.add('open');
+    } finally {
+      body.classList.remove('typing');
+      busy = false; sendBtn.disabled = false; input.focus();
+    }
+  }
+
+  $('#form').addEventListener('submit', (e) => { e.preventDefault(); const t = input.value; input.value = ''; autosize(); send(t); });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#form').requestSubmit(); } });
+  function autosize() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 200) + 'px'; }
+  input.addEventListener('input', autosize);
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => send(c.textContent)));
+  $('#status').addEventListener('click', () => {
+    const open = $('#providers').classList.toggle('open');
+    $('#status').setAttribute('aria-expanded', String(open));
+  });
+  $('#copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(base); $('#copy').textContent = 'copied'; } catch { $('#copy').textContent = base; }
+    setTimeout(() => { $('#copy').textContent = 'copy'; }, 1500);
+  });
+  $('#clear').addEventListener('click', () => location.replace(location.pathname));
+
+  loadStatus().then(() => {
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) send(q);
+  });
+  setInterval(loadStatus, 30000);
+  input.focus();
+})();
+</script>
+</body>
+</html>
