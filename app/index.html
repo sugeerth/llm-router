@@ -58,6 +58,10 @@ textarea:focus { border-color: var(--accent); }
 .hint { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .hint code { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
 .link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; font-size: 12px; }
+.routerline { font-size: 12px; color: var(--muted); padding: 6px 0 0; }
+.setup ol { text-align: left; margin: 14px auto 0; padding-left: 20px; max-width: 470px; }
+.setup li { margin: 6px 0; }
+.setup code, .routerline code { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; color: var(--text); }
 </style>
 </head>
 <body>
@@ -102,13 +106,28 @@ textarea:focus { border-color: var(--accent); }
   let busy = false;
   let key = null;
   try { key = sessionStorage.getItem('llm-router-key'); } catch {}
-  const base = location.origin + '/v1';
-  $('#base').textContent = base;
+  // Where is the router? Same origin when llm-router serves this page; otherwise (the copy
+  // on GitHub Pages) the visitor's own router, http://localhost:4000 unless changed.
+  let API = '';
+  let remote = false;
+  async function detectAPI() {
+    const q = new URLSearchParams(location.search).get('api');
+    if (q) return q.replace(/\/+$/, '');
+    if (location.protocol.startsWith('http')) {
+      try {
+        const r = await fetch('/health', { cache: 'no-store' });
+        if (r.ok && (await r.json()).ok) return location.origin;
+      } catch {}
+    }
+    let saved = null;
+    try { saved = localStorage.getItem('llm-router-base'); } catch {}
+    return saved || 'http://localhost:4000';
+  }
 
   async function api(path, opts = {}, retried = false) {
     const headers = { 'content-type': 'application/json', ...(opts.headers || {}) };
     if (key) headers.authorization = 'Bearer ' + key;
-    const res = await fetch(path, { ...opts, headers });
+    const res = await fetch(API + path, { ...opts, headers });
     if (res.status === 401 && !retried) {
       const k = prompt('This llm-router requires an API key:');
       if (k) {
@@ -145,6 +164,38 @@ textarea:focus { border-color: var(--accent); }
     });
   }
 
+  function code(text) { return el('code', null, text); }
+
+  function showRouterLine() {
+    const line = el('div', 'routerline');
+    line.append('Using your llm-router at ', code(API), ' · ');
+    const b = el('button', 'link', 'change');
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      const v = prompt('Router URL (where llm-router runs):', API);
+      if (v) { try { localStorage.setItem('llm-router-base', v.trim().replace(/\/+$/, '')); } catch {} location.replace(location.pathname); }
+    });
+    line.appendChild(b);
+    $('header').after(line);
+  }
+
+  function showSetup() {
+    if (document.querySelector('.setup') || history.length) return;
+    const box = el('div', 'empty setup');
+    box.appendChild(el('h1', null, 'Start your free router'));
+    const intro = el('div');
+    intro.append('This page chats through llm-router running on your own computer at ', code(API), '.');
+    box.appendChild(intro);
+    const ol = el('ol');
+    const li1 = el('li'); li1.append('Run ', code('npx github:sugeerth/llm-router'), ' (Node 18+).');
+    const li2 = el('li'); li2.append('Give it a model: a free key such as ', code('GROQ_API_KEY'), ', or a local server (Ollama, LM Studio, MLX).');
+    const li3 = el('li', null, 'Reload this page. If the browser asks to let this site use apps on your device, allow it.');
+    ol.append(li1, li2, li3);
+    box.appendChild(ol);
+    const old = $('#empty');
+    if (old) old.replaceWith(box); else chat.prepend(box);
+  }
+
   async function loadStatus() {
     try {
       const [st, models] = await Promise.all([
@@ -152,6 +203,8 @@ textarea:focus { border-color: var(--accent); }
         api('/v1/models').then(r => r.json()),
       ]);
       const n = st.models || 0;
+      const setup = document.querySelector('.setup');
+      if (setup) setup.replaceWith(el('div', 'empty', 'Connected to your router. Ask anything.'));
       const pill = $('#status');
       pill.innerHTML = '';
       pill.appendChild(el('span', 'dot ' + (n ? 'ok' : 'warn')));
@@ -198,6 +251,7 @@ textarea:focus { border-color: var(--accent); }
       modelSel.value = [...modelSel.options].some(o => o.value === current) ? current : 'auto';
     } catch (err) {
       $('#status').textContent = 'router not reachable';
+      if (remote) showSetup();
     }
   }
 
@@ -275,16 +329,23 @@ textarea:focus { border-color: var(--accent); }
     $('#status').setAttribute('aria-expanded', String(open));
   });
   $('#copy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(base); $('#copy').textContent = 'copied'; } catch { $('#copy').textContent = base; }
+    const b = API + '/v1';
+    try { await navigator.clipboard.writeText(b); $('#copy').textContent = 'copied'; } catch { $('#copy').textContent = b; }
     setTimeout(() => { $('#copy').textContent = 'copy'; }, 1500);
   });
   $('#clear').addEventListener('click', () => location.replace(location.pathname));
 
-  loadStatus().then(() => {
+  detectAPI().then((a) => {
+    API = a;
+    remote = API !== location.origin;
+    $('#base').textContent = API + '/v1';
+    if (remote) showRouterLine();
+    return loadStatus();
+  }).then(() => {
     const q = new URLSearchParams(location.search).get('q');
-    if (q) send(q);
+    if (q && !document.querySelector('.setup')) send(q);
   });
-  setInterval(loadStatus, 30000);
+  setInterval(() => { if (API) loadStatus(); }, 30000);
   input.focus();
 })();
 </script>
