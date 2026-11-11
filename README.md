@@ -4,7 +4,7 @@
 
 - **Free by default.** Paid models are never used unless you pass `--allow-paid`.
 - **Works with anything.** OpenAI Chat Completions API (streaming, tools, images) and the Anthropic Messages API (Claude Code, Anthropic SDKs).
-- **Built-in chat app.** Open `http://localhost:4000` in a browser to chat with your free models and see which one answered and why.
+- **Built-in chat app.** Open `http://localhost:4000` in a browser to chat with your free models and see which one answered and why. The same page is hosted at [sugeerth.github.io/llm-router/app](https://sugeerth.github.io/llm-router/app/) and talks to the router on your own computer.
 - **Zero dependencies.** One command, Node 18+. MIT licensed.
 - **Easy to extend.** Any OpenAI-compatible URL becomes a provider with a few lines of JSON.
 
@@ -163,7 +163,7 @@ node bin/llm-router.js models     # what's connected
 node bin/llm-router.js --help
 ```
 
-Layout: `src/router.js` (routing + failover), `src/providers.js` (provider catalog: add one here), `src/profiles.js` (model knowledge), `src/anthropic.js` (Messages API translation), `src/server.js` (HTTP), `src/app.html` (chat app), `bin/llm-router.js` (CLI).
+Layout: `src/router.js` (routing + failover), `src/providers.js` (provider catalog: add one here), `src/profiles.js` (model knowledge), `src/anthropic.js` (Messages API translation), `src/server.js` (HTTP), `app/index.html` (chat app), `bin/llm-router.js` (CLI).
 
 ## License
 

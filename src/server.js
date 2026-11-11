@@ -26,9 +26,9 @@ export const DEFAULT_CORS = [
 const EXPOSE = 'x-llm-router-model, x-llm-router-provider, x-llm-router-strategy, x-llm-router-attempts, x-llm-router-reason, x-llm-router-substituted';
 
 let appHTML = null;
-/** The built-in chat app (src/app.html), served at "/" to browsers. */
+/** The built-in chat app (app/index.html), served at "/" to browsers. */
 function appResponse() {
-    appHTML ??= fs.readFileSync(new URL('./app.html', import.meta.url), 'utf8');
+    appHTML ??= fs.readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
     return new Response(appHTML, {
         headers: {
             'content-type': 'text/html; charset=utf-8',
