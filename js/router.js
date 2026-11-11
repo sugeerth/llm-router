@@ -36,16 +36,19 @@ export class LLMRouter {
     constructor() {
         this.analyzer = new QueryAnalyzer();
         this.weights = { ...DEFAULT_WEIGHTS };
+        this.overrides = {};   // weights pinned via the Settings sliders
         this.models = MODELS;
     }
 
     setWeights(weights) {
+        this.overrides = { ...this.overrides, ...weights };
         this.weights = { ...this.weights, ...weights };
     }
 
     setPriority(priority) {
         if (PRIORITY_PRESETS[priority]) {
-            this.weights = { ...PRIORITY_PRESETS[priority] };
+            // slider overrides survive priority changes (previously every route() reset them)
+            this.weights = { ...PRIORITY_PRESETS[priority], ...this.overrides };
         }
     }
 

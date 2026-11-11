@@ -231,12 +231,14 @@ export class QueryAnalyzer {
         DATA_EXTRACTION_PATTERNS.forEach(p => { if (p.test(query)) dataScore += 0.25; });
         scores[TASK_TYPES.DATA_EXTRACTION] = Math.min(dataScore, 1);
 
-        // Conversation (fallback - scores higher when nothing else matches well)
+        // Conversation is the fallback: it wins only when no task pattern matched.
+        // (Previously 0.5 - 0.8*max, which beat any single-pattern match, so
+        // "Prove that sqrt(2) is irrational" was classified as chit-chat.)
         const maxOtherScore = Math.max(...Object.values(scores));
-        scores[TASK_TYPES.CONVERSATION] = Math.max(0, 0.5 - maxOtherScore * 0.8);
+        scores[TASK_TYPES.CONVERSATION] = maxOtherScore === 0 ? 0.5 : Math.max(0, 0.15 - maxOtherScore * 0.5);
 
-        // General instruction following
-        scores[TASK_TYPES.INSTRUCTION_FOLLOWING] = 0.3; // baseline for everything
+        // General instruction following: weak baseline so real signals win
+        scores[TASK_TYPES.INSTRUCTION_FOLLOWING] = 0.1;
 
         return scores;
     }
