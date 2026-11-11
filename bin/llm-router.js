@@ -129,7 +129,8 @@ async function cmdServe(flags, config) {
     console.log(providerLines(router));
     console.log(`\n  ${router.candidates.length ? green(`${router.candidates.length} models ready`) : yellow('No models yet — start Ollama/LM Studio or set a free key (see above). Local servers are picked up automatically.')}` +
         `  ${dim(router.options.allowPaid ? '· paid models allowed' : '· free models only')}`);
-    console.log(`\n  ${bold('OpenAI')}     base_url ${cyan(`${base}/v1`)}   model ${cyan('"auto"')}  ${dim('(or fast · best · local · any id)')}`);
+    console.log(`\n  ${bold('Chat app')}   ${cyan(base)}  ${dim('(open in your browser)')}`);
+    console.log(`  ${bold('OpenAI')}     base_url ${cyan(`${base}/v1`)}   model ${cyan('"auto"')}  ${dim('(or fast · best · local · any id)')}`);
     console.log(`  ${bold('Anthropic')}  base_url ${cyan(base)}       ${dim('e.g. ANTHROPIC_BASE_URL=' + base + ' claude')}`);
     console.log(`  ${bold('API key')}    ${apiKey ? 'required (the one you set)' : dim('any value (none required)')}`);
     if (host !== '127.0.0.1' && host !== 'localhost' && !apiKey) {

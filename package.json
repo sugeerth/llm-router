@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "start": "node bin/llm-router.js serve",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "doctor": "node bin/llm-router.js doctor"
   },
   "engines": {

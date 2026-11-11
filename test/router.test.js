@@ -224,6 +224,26 @@ test('CORS: localhost allowed, unknown origins refused, preflight answered', asy
     assert.equal(pre.status, 204);
 });
 
+test('chat app is served to browsers at /, and its same-origin calls are allowed', async () => {
+    const page = await fetch(`${r.base}/`, { headers: { accept: 'text/html' } });
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type'), /text\/html/);
+    assert.match(await page.text(), /one free endpoint for every LLM/);
+    const json = await fetch(`${r.base}/`);
+    assert.equal((await json.json()).name, 'llm-router');
+    const same = await postJSON(`${r.base}/v1/chat/completions`, hello, { origin: r.base });
+    assert.equal(same.res.status, 200);
+});
+
+test('DNS-rebinding style origins are refused even if they look same-origin', async () => {
+    const { createHandler } = await import('../src/server.js');
+    const handle = createHandler(r.router);
+    const res = await handle(new Request('http://evil.example:4000/v1/chat/completions', {
+        method: 'POST', headers: { origin: 'http://evil.example:4000', 'content-type': 'application/json' }, body: JSON.stringify(hello),
+    }));
+    assert.equal(res.status, 403);
+});
+
 test('optional API key protects the server', async () => {
     const locked = await startRouter([{ id: 'small', baseURL: small.url, free: true }], {}, { apiKey: 'secret' });
     try {

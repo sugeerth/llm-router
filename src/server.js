@@ -12,6 +12,7 @@
  * Paths are forgiving: "/chat/completions" and "/v1/v1/chat/completions" work too.
  */
 
+import fs from 'node:fs';
 import http from 'node:http';
 import { anthropicToOpenAI, openAIToAnthropic, openAIStreamToAnthropic, countTokens, anthropicError } from './anthropic.js';
 import { sseData, streamResponse } from './sse.js';
@@ -23,6 +24,30 @@ export const DEFAULT_CORS = [
 ];
 
 const EXPOSE = 'x-llm-router-model, x-llm-router-provider, x-llm-router-strategy, x-llm-router-attempts, x-llm-router-reason, x-llm-router-substituted';
+
+let appHTML = null;
+/** The built-in chat app (src/app.html), served at "/" to browsers. */
+function appResponse() {
+    appHTML ??= fs.readFileSync(new URL('./app.html', import.meta.url), 'utf8');
+    return new Response(appHTML, {
+        headers: {
+            'content-type': 'text/html; charset=utf-8',
+            'cache-control': 'no-store',
+            'content-security-policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'none'",
+        },
+    });
+}
+
+/**
+ * The app's own requests are same-origin. Only trust that for localhost / IP-literal
+ * hosts, so a DNS-rebinding page (evil.example -> 127.0.0.1) can't pose as us.
+ */
+function isSameOrigin(request, origin) {
+    const url = new URL(request.url);
+    const h = url.hostname;
+    const safeHost = h === 'localhost' || /^[\d.]+$/.test(h) || h.startsWith('[');
+    return safeHost && origin === url.origin;
+}
 
 export function normalizePath(p) {
     let path = (p || '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
@@ -150,6 +175,7 @@ export function createHandler(router, { apiKey = null, cors = DEFAULT_CORS } = {
     async function dispatch(request, path) {
         const m = request.method;
         if (m === 'GET' && path === '/') {
+            if ((request.headers.get('accept') || '').includes('text/html')) return appResponse();
             const origin = new URL(request.url).origin;
             return jsonResponse({
                 name: 'llm-router', version: VERSION, ok: true, models: router.candidates.length,
@@ -176,7 +202,7 @@ export function createHandler(router, { apiKey = null, cors = DEFAULT_CORS } = {
         const path = normalizePath(new URL(request.url).pathname);
         const anthropic = path.startsWith('/v1/messages');
         const origin = request.headers.get('origin');
-        const corsHeaders = origin ? corsHeadersFor(origin, cors) : {};
+        const corsHeaders = !origin || isSameOrigin(request, origin) ? {} : corsHeadersFor(origin, cors);
         if (origin && !corsHeaders) {
             return openaiError(403, `Browser origin ${origin} is not allowed. Restart with --cors "${origin}" (or "*") to allow it.`, 'permission_error');
         }

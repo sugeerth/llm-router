@@ -4,6 +4,7 @@
 
 - **Free by default.** Paid models are never used unless you pass `--allow-paid`.
 - **Works with anything.** OpenAI Chat Completions API (streaming, tools, images) and the Anthropic Messages API (Claude Code, Anthropic SDKs).
+- **Built-in chat app.** Open `http://localhost:4000` in a browser to chat with your free models and see which one answered and why.
 - **Zero dependencies.** One command, Node 18+. MIT licensed.
 - **Easy to extend.** Any OpenAI-compatible URL becomes a provider with a few lines of JSON.
 
@@ -13,8 +14,8 @@
 # 1. Have at least one free source: a local server (e.g. Ollama) or a free key (no credit card):
 export GROQ_API_KEY=...        # https://console.groq.com/keys
 
-# 2. Start the router
-npx github:sugeerth/llm-router
+# 2. Start the router, then open http://localhost:4000 to chat
+npx github:sugeerth/llm-router        # or install it: npm i -g github:sugeerth/llm-router && llm-router
 
 # 3. Use it from anything
 curl http://localhost:4000/v1/chat/completions -H "content-type: application/json" \
@@ -142,6 +143,7 @@ await serve(createHandler(router), { port: 4000 });   // or mount createHandler(
 
 | Endpoint | |
 |---|---|
+| `GET /` | the chat app (in a browser); JSON status otherwise |
 | `POST /v1/chat/completions` | OpenAI-compatible: streaming, tools, images, JSON mode |
 | `GET /v1/models` | `auto`, `fast`, `best`, `local`, your aliases, and every routable model |
 | `POST /v1/messages` | Anthropic-compatible: streaming, tools, images |
@@ -156,12 +158,12 @@ The original in-browser demo still lives at **https://sugeerth.github.io/llm-rou
 ## Development
 
 ```bash
-npm test                          # 29 tests: unit + fake providers over real HTTP (no keys, no network)
+npm test                          # 30 tests: unit + fake providers over real HTTP (no keys, no network)
 node bin/llm-router.js models     # what's connected
 node bin/llm-router.js --help
 ```
 
-Layout: `src/router.js` (routing + failover), `src/providers.js` (provider catalog: add one here), `src/profiles.js` (model knowledge), `src/anthropic.js` (Messages API translation), `src/server.js` (HTTP), `bin/llm-router.js` (CLI).
+Layout: `src/router.js` (routing + failover), `src/providers.js` (provider catalog: add one here), `src/profiles.js` (model knowledge), `src/anthropic.js` (Messages API translation), `src/server.js` (HTTP), `src/app.html` (chat app), `bin/llm-router.js` (CLI).
 
 ## License
 
